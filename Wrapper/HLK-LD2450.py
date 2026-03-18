@@ -110,8 +110,10 @@ if __name__ =="__main__":
     Sensor=HLK_LD2450('/dev/ttyS0', '256000') 
     Sensor.connSerial() #make sure serial hardware is initalized (sudo raspi-config)
     Sensor.getSerial()
+    #following lines are for testing only
     tar1, tar2, tar3 = Sensor.splitString('AAFF03000E03B186100040010000000000000000000000000000000055CC') #example string from manual
     Sensor.updateObjectsTracked([tar1,tar2,tar3])
     Sensor.getobjectsTracked(True)
+    #once hardware is here this should happen in the while loop
     # while True:
     #     Sensor.getDatafromSerial()
