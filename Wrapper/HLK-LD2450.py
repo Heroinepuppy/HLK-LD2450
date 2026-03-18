@@ -44,12 +44,12 @@ class HLK_LD2450:
                 print(_+':')
                 for __ in self.objectsTracked[_]:
                     print('\t'+__+': '+str(self.objectsTracked[_][__]))
+        return self.objectsTracked
 
     def getSerial(self):
         '''
             Returns handle to serial port
         '''
-        print(self.serialPort)
         return self.serialPort
 
     def getDatafromSerial(self):
@@ -106,7 +106,6 @@ class HLK_LD2450:
             self.objectsTracked[list_of_keys[counter]]['v_cm/s']=dataset[2]
             self.objectsTracked[list_of_keys[counter]]['dres_mm']=dataset[3]
 
-
 if __name__ =="__main__":
     Sensor=HLK_LD2450('/dev/ttyS0', '256000') 
     Sensor.connSerial() #make sure serial hardware is initalized (sudo raspi-config)
@@ -116,4 +115,3 @@ if __name__ =="__main__":
     Sensor.getobjectsTracked(True)
     # while True:
     #     Sensor.getDatafromSerial()
-
