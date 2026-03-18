@@ -1,4 +1,6 @@
-import serial                                                                                   #access to serial hardware on RPi Zero 2 W
+import serial                                                                               #access to serial hardware on RPi Zero 2 W
+import os                                                                                   #for clearing terminal                                                                      
+import time
 
 class HLK_LD2450:
     '''
@@ -12,8 +14,11 @@ class HLK_LD2450:
                 creates dictionary of objects tracked by sensor
                 Handles communication parameters
         '''
-        self.Port=Port
-        self.Speed=Speed
+        
+        self.serialPort = serial.Serial()
+        self.serialPort.port=Port
+        self.serialPort.baudrate=Speed
+        self.serialPort.timeout=2
         self.objectsTracked={
             "Object1":{"x_mm": 0, 'y_mm': 0, 'v_cm/s':0, 'dres_mm': 0},
             "Object2":{"x_mm": 0, 'y_mm': 0, 'v_cm/s':0, 'dres_mm': 0}, 
@@ -29,11 +34,16 @@ class HLK_LD2450:
     def connSerial(self):
         '''
             Opens Serial communication port
-        '''    
+        '''   
+        print('Attempting to open serial port')
         try:                                                  
-            self.serialPort=serial.Serial(port=self.Port, baudrate=self.Speed, timeout=2)
+            self.serialPort.open()
+            while not self.serialPort.is_open:
+                pass
+            print('DONE!')
         except Exception as e:
             print(e)
+
 
     def getobjectsTracked(self, printing=False):
         '''
@@ -52,23 +62,34 @@ class HLK_LD2450:
         '''
         return self.serialPort
 
+    def flushSerial(self):
+        self.serialPort.flushOutput()
+        self.serialPort.flushInput()
+
     def getDatafromSerial(self):
         '''
             Reads data from serial port into dictionary
         '''      
-        message=self.serialPort.read()
+        message=self.serialPort.read(30)
+        message=self.converString(message)
         data=self.splitString(message)
-        updateObjectsTracked(data)
+        self.updateObjectsTracked(data)
+
+    def converString(self, message):
+        return message.hex()
     
     def splitString(self, datastring=''):
         '''
             Splits string read from serial port into components representing the tracked objects
         '''
         #datastring= "AAFF03000E03B186100040010000000000000000000000000000000055CC" example from manual
-        data=datastring.split('AAFF0300')[1]                                                    #cut away header
-        data=data.split('55CC')[0]                                                              #cut away end of frame
-        target1, target2, target3 = [data[i: i+16] for i in range(0, len(data),16)]             #part string into chunks representing the tracked objects 
-        return [target1, target2, target3]
+        try:
+            data=datastring.split('aaff0300')[1]                                                    #cut away header
+            data=data.split('55cc')[0]                                                              #cut away end of frame - now that i ahve hardware running, this sequence is never in the data read from serial port 
+            target1, target2, target3 = [data[i: i+16] for i in range(0, len(data),16)]             #part string into chunks representing the tracked objects 
+            return [target1, target2, target3]
+        except Exception as e:
+                print(e)
 
     def swapBytes(self, data):
         '''
@@ -95,13 +116,13 @@ class HLK_LD2450:
         '''
             Formats data and updates dictionary of traced objects with dataset handed into this method
         '''
-        tempData=[]                                                                           #list will be filled with a list of datapoints
+        tempData=[]                                                                          #list will be filled with a list of datapoints
         for objects in data:                                                                  #iterate over list of incomming data  
             objectdata = [x, y, v, dr] = [objects[i: i+4] for i in range(0, len(objects),4)]  #cut lsit into chunks corresponding to the tracked objects -> this leaves us with swapped high and low bytes becaus thats hwo data is send
             objectdata = self.swapBytes(objectdata)                                           #this repairs the swapped bytes
             objectdata = self.subtractOffset(objectdata)                                      #documentation says highes byte = 0 -> negative direction wich is contrariy to signed into convention 
             tempData.append(objectdata)
-        list_of_keys=list(self.objectsTracked.keys())                                         #makes alist of keys of dict to merge list into dict
+        list_of_keys=list(self.objectsTracked.keys())                                         #makes a list of keys of a dict to merge other list into dict
         for counter, dataset in enumerate(tempData):
             self.objectsTracked[list_of_keys[counter]]['x_mm']=dataset[0]
             self.objectsTracked[list_of_keys[counter]]['y_mm']=dataset[1]
@@ -110,12 +131,10 @@ class HLK_LD2450:
 
 if __name__ =="__main__":
     Sensor=HLK_LD2450('/dev/ttyS0', '256000') 
-    Sensor.connSerial()                                                                       #make sure serial hardware is initalized (sudo raspi-config)
+    Sensor.connSerial()                                                                       #make sure serial hardware is initalized (sudo raspi-config) and your user must be part of teh dialoutgroup (sudo gpasswd --add $user dialout)
     Sensor.getSerial()
-    #following lines are for testing only
-    tar1, tar2, tar3 = Sensor.splitString('AAFF03000E03B186100040010000000000000000000000000000000055CC') #example string from manual
-    Sensor.updateObjectsTracked([tar1,tar2,tar3])
-    Sensor.getobjectsTracked(True)
-    #once hardware is here this should happen in the while loop
-    # while True:
-    #     Sensor.getDatafromSerial()
+    while True:
+        Sensor.flushSerial() 
+        Sensor.getDatafromSerial()
+        Sensor.getobjectsTracked(True)
+        #os.system('clear')                                                                     #empties read buffer
