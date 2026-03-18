@@ -1,5 +1,4 @@
-import serial #access to serial hardware
-import signal #behaviour on ctrl+c
+import serial #access to serial hardware on RPi Zero 2 W
 
 class HLK_LD2450:
     def __init__(self, Port, Speed):
@@ -11,9 +10,9 @@ class HLK_LD2450:
         self.Port=Port
         self.Speed=Speed
         self.objectsTracked={
-            "Object1":{"x": 0, 'y': 0, 'v':0, 'dres': 0},
-            "Object2":{"x": 0, 'y': 0, 'v':0, 'dres': 0}, 
-            "Object3":{"x": 0, 'y': 0, 'v':0, 'dres': 0}
+            "Object1":{"x_mm": 0, 'y_mm': 0, 'v_cm/s':0, 'dres_mm': 0},
+            "Object2":{"x_mm": 0, 'y_mm': 0, 'v_cm/s':0, 'dres_mm': 0}, 
+            "Object3":{"x_mm": 0, 'y_mm': 0, 'v_cm/s':0, 'dres_mm': 0}
             }                                            
    
     def closeSerial(self):
@@ -52,13 +51,76 @@ class HLK_LD2450:
         '''
             Reads data from serial port into dictionary
         '''      
-        print(self.serialPort.read())
+        message=self.serialPort.read()
+        data=self.splitString(message)
+        updateObjectsTracked(data)
+    
+    def splitString(self, datastring=''):
+        '''
+            Splits string read from serial port into components
+        '''
+        #datastring= "AAFF03000E03B186100040010000000000000000000000000000000055CC" example from manual
+        data=datastring.split('AAFF0300')[1]    #cut away header
+        data=data.split('55CC')[0]              #cut away end of frame
+        target1, target2, target3 = [data[i: i+16] for i in range(0, len(data),16)] #part string into chunks representing the tracked objects 
+        #print(target1+" "*5+target2+" "*5+target3)
+        return [target1, target2, target3]
+
+    def swapBytes(self, data):
+        '''
+            Swaps high bits 8-15 and low bits 0-7
+        '''
+        returnData = []
+        for values in data:
+            returnData.append(((int(values,16)&0xFF00)>>8) + ((int(values,16)&0xFF)<<8))
+        return returnData #above lines already cast it into an integer
+
+    def subtractOffset(self, data):
+        '''
+            substracts offset from x,y,v
+        '''
+        returnData = []
+        for values in data:
+            if values >= 0x8000: # vales > 0x8000 (0b1000 0000 0000 0000) need to substract the leading 1 because thats just the +-sign and not the value
+                returnData.append(values-0x8000)
+            if values < 0x8000:
+                returnData.append(0-values) # if values <0x8000 that means it is points towards negative direction
+        return returnData 
+
+    def updateObjectsTracked(self, data):
+        tempData=[]                                                                           #list will be filled with a list of datapoints
+        for objects in data:                                                                  #iterate over list of incomming data  
+            objectdata = [x, y, v, dr] = [objects[i: i+4] for i in range(0, len(objects),4)]  #cut lsit into chunks corresponding to the tracked objects -> this leaves us with swapped high and low bytes becaus thats hwo data is send
+            objectdata = self.swapBytes(objectdata)                                           #this repairs the swapped bytes
+            objectdata = self.subtractOffset(objectdata)                                      #documentation says highes byte = 0 -> negative direction wich is contrariy to signed into convention 
+            tempData.append(objectdata)
+        for counter, dataset in enumerate(tempData):
+            if counter == 0:
+                self.objectsTracked['Object1']['x_mm']=dataset[0]
+                self.objectsTracked['Object1']['y_mm']=dataset[1]
+                self.objectsTracked['Object1']['v_cm/s']=dataset[2]
+                self.objectsTracked['Object1']['dres_mm']=dataset[3]
+            if counter == 1:
+                self.objectsTracked['Object2']['x_mm']=dataset[0]
+                self.objectsTracked['Object2']['y_mm']=dataset[1]
+                self.objectsTracked['Object2']['v_cm/s']=dataset[2]
+                self.objectsTracked['Object2']['dres_mm']=dataset[3]
+            if counter == 2:
+                self.objectsTracked['Object3']['x_mm']=dataset[0]
+                self.objectsTracked['Object3']['y_mm']=dataset[1]
+                self.objectsTracked['Object3']['v_cm/s']=dataset[2]
+                self.objectsTracked['Object3']['dres_mm']=dataset[3]
+        print(self.objectsTracked)
+
+
 
 
 if __name__ =="__main__":
     Sensor=HLK_LD2450('/dev/ttyS0', '256000') 
     Sensor.connSerial() #make sure serial hardware is initalized (sudo raspi-config)
     Sensor.getSerial()
-    while True:
-        Sensor.getDatafromSerial()
+    tar1, tar2, tar3 = Sensor.splitString('AAFF03000E03B186100040010000000000000000000000000000000055CC') #example string from manual
+    Sensor.updateObjectsTracked([tar1,tar2,tar3])
+    # while True:
+    #     Sensor.getDatafromSerial()
 
