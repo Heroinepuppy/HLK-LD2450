@@ -1,4 +1,4 @@
-import serial #access to serial hardware on RPi Zero 2 W
+import serial                                                                                   #access to serial hardware on RPi Zero 2 W
 
 class HLK_LD2450:
     '''
@@ -65,10 +65,9 @@ class HLK_LD2450:
             Splits string read from serial port into components representing the tracked objects
         '''
         #datastring= "AAFF03000E03B186100040010000000000000000000000000000000055CC" example from manual
-        data=datastring.split('AAFF0300')[1]    #cut away header
-        data=data.split('55CC')[0]              #cut away end of frame
-        target1, target2, target3 = [data[i: i+16] for i in range(0, len(data),16)] #part string into chunks representing the tracked objects 
-        #print(target1+" "*5+target2+" "*5+target3)
+        data=datastring.split('AAFF0300')[1]                                                    #cut away header
+        data=data.split('55CC')[0]                                                              #cut away end of frame
+        target1, target2, target3 = [data[i: i+16] for i in range(0, len(data),16)]             #part string into chunks representing the tracked objects 
         return [target1, target2, target3]
 
     def swapBytes(self, data):
@@ -78,7 +77,7 @@ class HLK_LD2450:
         returnData = []
         for values in data:
             returnData.append(((int(values,16)&0xFF00)>>8) + ((int(values,16)&0xFF)<<8))
-        return returnData #above lines already cast it into an integer
+        return returnData                                                                       #above lines already cast it into an integer
 
     def subtractOffset(self, data):
         '''
@@ -86,13 +85,16 @@ class HLK_LD2450:
         '''
         returnData = []
         for values in data:
-            if values >= 0x8000: # vales > 0x8000 (0b1000 0000 0000 0000) need to substract the leading 1 because thats just the +-sign and not the value
+            if values >= 0x8000:                                                               # vales > 0x8000 (0b1000 0000 0000 0000) need to substract the leading 1 because thats just the +-sign and not the value
                 returnData.append(values-0x8000)
             if values < 0x8000:
-                returnData.append(0-values) # if values <0x8000 that means it is points towards negative direction
+                returnData.append(0-values)                                                    # if values <0x8000 that means it is points towards negative direction
         return returnData 
 
     def updateObjectsTracked(self, data):
+        '''
+            Formats data and updates dictionary of traced objects with dataset handed into this method
+        '''
         tempData=[]                                                                           #list will be filled with a list of datapoints
         for objects in data:                                                                  #iterate over list of incomming data  
             objectdata = [x, y, v, dr] = [objects[i: i+4] for i in range(0, len(objects),4)]  #cut lsit into chunks corresponding to the tracked objects -> this leaves us with swapped high and low bytes becaus thats hwo data is send
@@ -108,7 +110,7 @@ class HLK_LD2450:
 
 if __name__ =="__main__":
     Sensor=HLK_LD2450('/dev/ttyS0', '256000') 
-    Sensor.connSerial() #make sure serial hardware is initalized (sudo raspi-config)
+    Sensor.connSerial()                                                                       #make sure serial hardware is initalized (sudo raspi-config)
     Sensor.getSerial()
     #following lines are for testing only
     tar1, tar2, tar3 = Sensor.splitString('AAFF03000E03B186100040010000000000000000000000000000000055CC') #example string from manual
