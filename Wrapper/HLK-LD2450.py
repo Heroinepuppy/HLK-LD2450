@@ -94,25 +94,12 @@ class HLK_LD2450:
             objectdata = self.swapBytes(objectdata)                                           #this repairs the swapped bytes
             objectdata = self.subtractOffset(objectdata)                                      #documentation says highes byte = 0 -> negative direction wich is contrariy to signed into convention 
             tempData.append(objectdata)
+        list_of_keys=list(self.objectsTracked.keys())                                         #makes alist of keys of dict to merge list into dict
         for counter, dataset in enumerate(tempData):
-            if counter == 0:
-                self.objectsTracked['Object1']['x_mm']=dataset[0]
-                self.objectsTracked['Object1']['y_mm']=dataset[1]
-                self.objectsTracked['Object1']['v_cm/s']=dataset[2]
-                self.objectsTracked['Object1']['dres_mm']=dataset[3]
-            if counter == 1:
-                self.objectsTracked['Object2']['x_mm']=dataset[0]
-                self.objectsTracked['Object2']['y_mm']=dataset[1]
-                self.objectsTracked['Object2']['v_cm/s']=dataset[2]
-                self.objectsTracked['Object2']['dres_mm']=dataset[3]
-            if counter == 2:
-                self.objectsTracked['Object3']['x_mm']=dataset[0]
-                self.objectsTracked['Object3']['y_mm']=dataset[1]
-                self.objectsTracked['Object3']['v_cm/s']=dataset[2]
-                self.objectsTracked['Object3']['dres_mm']=dataset[3]
-        print(self.objectsTracked)
-
-
+            self.objectsTracked[list_of_keys[counter]]['x_mm']=dataset[0]
+            self.objectsTracked[list_of_keys[counter]]['y_mm']=dataset[1]
+            self.objectsTracked[list_of_keys[counter]]['v_cm/s']=dataset[2]
+            self.objectsTracked[list_of_keys[counter]]['dres_mm']=dataset[3]
 
 
 if __name__ =="__main__":
