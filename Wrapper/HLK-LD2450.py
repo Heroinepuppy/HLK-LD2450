@@ -1,6 +1,11 @@
 import serial #access to serial hardware on RPi Zero 2 W
 
 class HLK_LD2450:
+    '''
+        The HLK_LD24560 is advertised as a RADAR sensor:
+            - which can track up to 3 objects at a time
+            - human presence detector
+    '''
     def __init__(self, Port, Speed):
         '''
             generator
@@ -36,7 +41,7 @@ class HLK_LD2450:
         '''
         if printing == True:
             for _ in self.objectsTracked:
-                print(_)
+                print(_+':')
                 for __ in self.objectsTracked[_]:
                     print('\t'+__+': '+str(self.objectsTracked[_][__]))
 
@@ -57,7 +62,7 @@ class HLK_LD2450:
     
     def splitString(self, datastring=''):
         '''
-            Splits string read from serial port into components
+            Splits string read from serial port into components representing the tracked objects
         '''
         #datastring= "AAFF03000E03B186100040010000000000000000000000000000000055CC" example from manual
         data=datastring.split('AAFF0300')[1]    #cut away header
@@ -108,6 +113,7 @@ if __name__ =="__main__":
     Sensor.getSerial()
     tar1, tar2, tar3 = Sensor.splitString('AAFF03000E03B186100040010000000000000000000000000000000055CC') #example string from manual
     Sensor.updateObjectsTracked([tar1,tar2,tar3])
+    Sensor.getobjectsTracked(True)
     # while True:
     #     Sensor.getDatafromSerial()
 
